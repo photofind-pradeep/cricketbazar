@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#22c55e" />
+  <meta name="description" content="CricketBazar - Fantasy Cricket. 70% Users Win. Real Money." />
+
+  <!-- PWA Meta Tags -->
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="CricketBazar" />
+
+  <!-- Open Graph (WhatsApp preview) -->
+  <meta property="og:title" content="CricketBazar 🏏" />
+  <meta property="og:description" content="Fantasy Cricket - 70% Users Win - Real Money" />
+  <meta property="og:type" content="website" />
+
+  <title>CricketBazar 🏏</title>
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="icon" href="/icon-192.png" />
+  <link rel="apple-touch-icon" href="/icon-192.png" />
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #04060e;
+      font-family: 'Rajdhani', 'Segoe UI', sans-serif;
+      overflow-x: hidden;
+    }
+    #root { min-height: 100vh; }
+
+    /* Splash screen shown before React loads */
+    #splash {
+      position: fixed; inset: 0;
+      background: #04060e;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 16px; z-index: 9999;
+      transition: opacity .5s ease;
+    }
+    #splash.hide { opacity: 0; pointer-events: none; }
+    #splash-logo { font-size: 64px; animation: bounce 1s ease infinite; }
+    #splash-title { font-size: 32px; font-weight: 900; color: #fff; letter-spacing: 2px; }
+    #splash-title span { color: #fbbf24; }
+    #splash-sub { font-size: 11px; color: #5a6a8a; letter-spacing: 4px; }
+    #splash-dots { display: flex; gap: 8px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; animation: pulse 1s infinite; }
+
+    /* Update banner */
+    #update-banner {
+      display: none;
+      position: fixed; top: 0; left: 0; right: 0;
+      background: #22c55e; color: #fff;
+      padding: 12px 16px;
+      display: flex; justify-content: space-between; align-items: center;
+      z-index: 10000; font-family: 'Rajdhani', sans-serif;
+      font-weight: 700; font-size: 14px;
+    }
+    #update-banner.hidden { display: none !important; }
+    #update-btn {
+      background: #fff; color: #22c55e;
+      border: none; border-radius: 8px;
+      padding: 6px 14px; font-weight: 800;
+      cursor: pointer; font-size: 13px;
+    }
+
+    /* Install prompt */
+    #install-prompt {
+      display: none;
+      position: fixed; bottom: 80px; left: 12px; right: 12px;
+      background: linear-gradient(135deg, #0a2a1a, #0f3a22);
+      border: 1px solid #2d6a3a; border-radius: 14px;
+      padding: 14px 16px; z-index: 9998;
+      font-family: 'Rajdhani', sans-serif;
+    }
+    #install-prompt.show { display: block; animation: slideUp .3s ease; }
+    #install-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+    #install-text { color: #e2e8f0; font-size: 13px; font-weight: 700; }
+    #install-sub { color: #5a6a8a; font-size: 11px; margin-top: 3px; }
+    #install-btn {
+      background: linear-gradient(135deg, #22c55e, #15803d);
+      color: #fff; border: none; border-radius: 10px;
+      padding: 10px 16px; font-weight: 800; font-size: 13px;
+      cursor: pointer; white-space: nowrap; flex-shrink: 0;
+    }
+    #install-close {
+      background: none; border: none;
+      color: #5a6a8a; cursor: pointer; font-size: 18px;
+      padding: 4px;
+    }
+
+    @keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
+    @keyframes pulse  { 0%,100%{opacity:.2} 50%{opacity:1} }
+    @keyframes slideUp{ from{transform:translateY(20px);opacity:0} to{transform:translateY(0);opacity:1} }
+  </style>
+</head>
+<body>
+
+  <!-- Splash Screen -->
+  <div id="splash">
+    <div id="splash-logo">🏏</div>
+    <div id="splash-title">Cricket<span>Bazar</span></div>
+    <div id="splash-sub">FANTASY CRICKET • WIN REAL MONEY</div>
+    <div id="splash-dots">
+      <div class="dot" style="background:#22c55e;animation-delay:0s"></div>
+      <div class="dot" style="background:#fbbf24;animation-delay:.15s"></div>
+      <div class="dot" style="background:#e8191b;animation-delay:.3s"></div>
+      <div class="dot" style="background:#38bdf8;animation-delay:.45s"></div>
+    </div>
+  </div>
+
+  <!-- Auto-Update Banner -->
+  <div id="update-banner" class="hidden">
+    🆕 New update available!
+    <button id="update-btn" onclick="applyUpdate()">Update Now</button>
+  </div>
+
+  <!-- Install to Home Screen Prompt -->
+  <div id="install-prompt">
+    <div id="install-row">
+      <div>
+        <div id="install-text">📲 Add CricketBazar to Home Screen</div>
+        <div id="install-sub">Works like a real app • Auto-updates • No reinstall needed</div>
+      </div>
+      <button id="install-btn" onclick="installApp()">Install</button>
+      <button id="install-close" onclick="closeInstall()">✕</button>
+    </div>
+  </div>
+
+  <!-- React App -->
+  <div id="root"></div>
+
+  <script type="module" src="/src/main.jsx"></script>
+
+  <script>
+    // ── SERVICE WORKER REGISTRATION ──────────────────────────────
+    let swRegistration = null;
+    let newWorker = null;
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', async () => {
+        try {
+          swRegistration = await navigator.serviceWorker.register('/sw.js');
+          console.log('[CricketBazar] SW registered');
+
+          // Check for updates
+          swRegistration.addEventListener('updatefound', () => {
+            newWorker = swRegistration.installing;
+            newWorker.addEventListener('statechange', () => {
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                // New update available! Show banner
+                document.getElementById('update-banner').classList.remove('hidden');
+                document.getElementById('update-banner').style.display = 'flex';
+              }
+            });
+          });
+
+          // Auto-check for updates every 60 seconds
+          setInterval(() => swRegistration.update(), 60000);
+
+        } catch(e) {
+          console.log('[CricketBazar] SW registration failed:', e);
+        }
+      });
+
+      // When new SW takes over, reload page
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        window.location.reload();
+      });
+    }
+
+    function applyUpdate() {
+      if (newWorker) {
+        newWorker.postMessage('SKIP_WAITING');
+      }
+      document.getElementById('update-banner').classList.add('hidden');
+    }
+
+    // ── INSTALL PROMPT ───────────────────────────────────────────
+    let deferredPrompt = null;
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      // Show custom install prompt after 3 seconds
+      setTimeout(() => {
+        if (!window.matchMedia('(display-mode: standalone)').matches) {
+          document.getElementById('install-prompt').classList.add('show');
+        }
+      }, 3000);
+    });
+
+    async function installApp() {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const result = await deferredPrompt.userChoice;
+        if (result.outcome === 'accepted') {
+          console.log('[CricketBazar] App installed!');
+        }
+        deferredPrompt = null;
+      }
+      closeInstall();
+    }
+
+    function closeInstall() {
+      document.getElementById('install-prompt').classList.remove('show');
+    }
+
+    // ── HIDE SPLASH after React loads ────────────────────────────
+    window.hideSplash = () => {
+      const splash = document.getElementById('splash');
+      splash.classList.add('hide');
+      setTimeout(() => splash.remove(), 500);
+    };
+
+    // Fallback: hide splash after 3s
+    setTimeout(() => {
+      const splash = document.getElementById('splash');
+      if (splash) splash.classList.add('hide');
+    }, 3000);
+  </script>
+</body>
+</html>

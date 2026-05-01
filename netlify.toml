@@ -1,11 +1,10 @@
 [build]
-  command         = "npm install && ./node_modules/.bin/vite build"
+  command         = "npm install && npx vite build"
   publish         = "dist"
   functions       = "netlify/functions"
 
 [build.environment]
   NODE_VERSION    = "20"
-  NPM_FLAGS       = "--legacy-peer-deps"
 
 [[redirects]]
   from    = "/api/cricket"

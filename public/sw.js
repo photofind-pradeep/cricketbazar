@@ -1,106 +1,53 @@
-// CricketBazar Service Worker
-// Handles: offline caching, auto-updates, push notifications
+// public/sw.js - CricketBazar Service Worker
 
-const CACHE_NAME = "cricketbazar-v1";
-const CACHE_URLS = [
-  "/",
-  "/index.html",
-  "/manifest.json",
-  "/icon-192.png",
-  "/icon-512.png"
-];
+const CACHE = 'cricketbazar-v2'
+const CACHE_URLS = ['/', '/index.html', '/manifest.json', '/icon-192.png', '/icon-512.png']
 
-// ── INSTALL: cache core files ──────────────────────────────────────
-self.addEventListener("install", (event) => {
-  console.log("[CricketBazar SW] Installing...");
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(CACHE_URLS);
-    })
-  );
-  // Take control immediately — don't wait for old SW to die
-  self.skipWaiting();
-});
+self.addEventListener('install', (e) => {
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(CACHE_URLS)))
+  self.skipWaiting()
+})
 
-// ── ACTIVATE: clean old caches ────────────────────────────────────
-self.addEventListener("activate", (event) => {
-  console.log("[CricketBazar SW] Activated — clearing old caches");
-  event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
-        keys
-          .filter((key) => key !== CACHE_NAME)
-          .map((key) => caches.delete(key))
-      )
+self.addEventListener('activate', (e) => {
+  e.waitUntil(
+    caches.keys().then(keys =>
+      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
     )
-  );
-  // Take control of all open tabs immediately
-  self.clients.claim();
-});
+  )
+  self.clients.claim()
+})
 
-// ── FETCH: network first, fallback to cache ────────────────────────
-self.addEventListener("fetch", (event) => {
-  const { request } = event;
-  const url = new URL(request.url);
+self.addEventListener('fetch', (e) => {
+  const url = new URL(e.request.url)
 
-  // API calls (live scores) — always network, never cache
+  // Never cache ANY external API calls or Netlify functions
   if (
-    url.hostname.includes("cricbuzz-live") ||
-    url.hostname.includes("supabase") ||
-    url.hostname.includes("razorpay")
+    url.pathname.startsWith('/.netlify/') ||
+    url.hostname.includes('supabase') ||
+    url.hostname.includes('cricapi') ||
+    url.hostname.includes('cricbuzz') ||
+    url.hostname.includes('razorpay') ||
+    url.hostname.includes('vercel')
   ) {
-    event.respondWith(fetch(request));
-    return;
+    // Just fetch directly — no caching, no interference
+    e.respondWith(fetch(e.request))
+    return
   }
 
   // App shell — network first, fallback to cache
-  event.respondWith(
-    fetch(request)
-      .then((response) => {
-        // Cache fresh copy
-        const clone = response.clone();
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(request, clone);
-        });
-        return response;
+  e.respondWith(
+    fetch(e.request)
+      .then(res => {
+        const clone = res.clone()
+        caches.open(CACHE).then(c => c.put(e.request, clone))
+        return res
       })
-      .catch(() => {
-        // Offline fallback
-        return caches.match(request).then((cached) => {
-          return cached || caches.match("/index.html");
-        });
-      })
-  );
-});
+      .catch(() =>
+        caches.match(e.request).then(cached => cached || caches.match('/index.html'))
+      )
+  )
+})
 
-// ── MESSAGE: force update from app ───────────────────────────────
-self.addEventListener("message", (event) => {
-  if (event.data === "SKIP_WAITING") {
-    self.skipWaiting();
-  }
-});
-
-// ── PUSH NOTIFICATIONS (future use) ──────────────────────────────
-self.addEventListener("push", (event) => {
-  const data = event.data?.json() || {};
-  const options = {
-    body: data.body || "Match update!",
-    icon: "/icon-192.png",
-    badge: "/icon-192.png",
-    vibrate: [200, 100, 200],
-    data: { url: data.url || "/" },
-  };
-  event.waitUntil(
-    self.registration.showNotification(
-      data.title || "CricketBazar 🏏",
-      options
-    )
-  );
-});
-
-self.addEventListener("notificationclick", (event) => {
-  event.notification.close();
-  event.waitUntil(
-    clients.openWindow(event.notification.data?.url || "/")
-  );
-});
+self.addEventListener('message', (e) => {
+  if (e.data === 'SKIP_WAITING') self.skipWaiting()
+})

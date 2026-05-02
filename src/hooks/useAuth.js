@@ -1,55 +1,70 @@
 // src/hooks/useAuth.js
+// Email OTP Login — Supabase handles it FREE, no Twilio needed!
+// User enters email → gets OTP in email → enters OTP → logged in
+
 import { useState, useEffect } from 'react'
-import { supabase, sendOTP, verifyOTP, createUser, getUser, signOut } from '../lib/supabase'
+import { supabase } from '../lib/supabase'
 
 export function useAuth() {
-  const [user, setUser]       = useState(null)   // DB user profile
-  const [session, setSession] = useState(null)   // Supabase session
+  const [user, setUser]       = useState(null)
+  const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError]     = useState(null)
 
-  // ── Listen for auth changes ──────────────────────────────────────
+  // ── Check existing session ─────────────────────────────────
   useEffect(() => {
-    // Get initial session
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session)
-      if (data.session?.user) loadUserProfile(data.session.user)
+      if (data.session?.user) loadProfile(data.session.user)
       else setLoading(false)
     })
 
-    // Listen for login/logout
     const { data: listener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         setSession(session)
-        if (session?.user) await loadUserProfile(session.user)
+        if (session?.user) await loadProfile(session.user)
         else { setUser(null); setLoading(false) }
       }
     )
-
     return () => listener.subscription.unsubscribe()
   }, [])
 
-  const loadUserProfile = async (authUser) => {
+  // ── Load or create user profile ────────────────────────────
+  const loadProfile = async (authUser) => {
     try {
-      let profile = await getUser(authUser.id).catch(() => null)
-      if (!profile) {
-        // First time login — create profile
-        const mobile = authUser.phone?.replace('+91', '') || ''
-        profile = await createUser(authUser.id, mobile)
+      const { data: existing } = await supabase
+        .from('users').select('*')
+        .eq('id', authUser.id).single()
+
+      if (existing) {
+        setUser(existing)
+      } else {
+        const email = authUser.email || ''
+        const name  = email.split('@')[0] || 'Player'
+        const { data: newUser } = await supabase
+          .from('users')
+          .insert({ id: authUser.id, mobile: email, name, balance: 0 })
+          .select().single()
+        setUser(newUser)
       }
-      setUser(profile)
     } catch (e) {
-      console.error('Profile load error:', e)
+      console.error('Profile error:', e)
     } finally {
       setLoading(false)
     }
   }
 
-  // ── Send OTP ─────────────────────────────────────────────────────
-  const login = async (mobile) => {
+  // ── SEND OTP to Email ──────────────────────────────────────
+  const login = async (email) => {
     setError(null)
     try {
-      await sendOTP(mobile)
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          shouldCreateUser: true,
+        }
+      })
+      if (error) throw error
       return true
     } catch (e) {
       setError(e.message)
@@ -57,11 +72,16 @@ export function useAuth() {
     }
   }
 
-  // ── Verify OTP ───────────────────────────────────────────────────
-  const verify = async (mobile, token) => {
+  // ── VERIFY OTP from Email ──────────────────────────────────
+  const verify = async (email, token) => {
     setError(null)
     try {
-      await verifyOTP(mobile, token)
+      const { error } = await supabase.auth.verifyOtp({
+        email,
+        token,
+        type: 'email',
+      })
+      if (error) throw error
       return true
     } catch (e) {
       setError(e.message)
@@ -69,18 +89,24 @@ export function useAuth() {
     }
   }
 
-  // ── Logout ───────────────────────────────────────────────────────
+  // ── LOGOUT ────────────────────────────────────────────────
   const logout = async () => {
-    await signOut()
+    await supabase.auth.signOut()
     setUser(null)
     setSession(null)
   }
 
-  // ── Refresh user from DB ─────────────────────────────────────────
+  // ── REFRESH USER ──────────────────────────────────────────
   const refreshUser = async () => {
     if (!session?.user) return
-    const profile = await getUser(session.user.id)
-    setUser(profile)
+    try {
+      const { data } = await supabase
+        .from('users').select('*')
+        .eq('id', session.user.id).single()
+      if (data) setUser(data)
+    } catch (e) {
+      console.error('Refresh error:', e)
+    }
   }
 
   return { user, session, loading, error, login, verify, logout, refreshUser }

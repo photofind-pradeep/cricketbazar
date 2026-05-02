@@ -1,7 +1,9 @@
 // netlify/functions/cricket.js
-// Standard Netlify Function (CommonJS)
+// ES Module syntax (matches package.json "type": "module")
 
-const handler = async (event) => {
+const CRICAPI = 'https://api.cricapi.com/v1'
+
+export const handler = async (event) => {
   if (event.httpMethod !== 'GET') {
     return { statusCode: 405, body: JSON.stringify({ error: 'Method not allowed' }) }
   }
@@ -10,7 +12,7 @@ const handler = async (event) => {
   if (!API_KEY) {
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: 'CRICKETDATA_KEY not set in Netlify environment variables' })
+      body: JSON.stringify({ error: 'CRICKETDATA_KEY not set in environment variables' })
     }
   }
 
@@ -19,7 +21,7 @@ const handler = async (event) => {
   const offset   = params.offset   || '0'
   const id       = params.id       || ''
 
-  let url = `https://api.cricapi.com/v1/${endpoint}?apikey=${API_KEY}&offset=${offset}`
+  let url = `${CRICAPI}/${endpoint}?apikey=${API_KEY}&offset=${offset}`
   if (id) url += `&id=${id}`
 
   try {
@@ -41,5 +43,3 @@ const handler = async (event) => {
     }
   }
 }
-
-module.exports = { handler }
